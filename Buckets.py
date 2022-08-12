@@ -3,11 +3,8 @@ class Buckets:
   max_capacity = {}
   
   def add_bucket(self, key, ep, max_cap):
-    if self.current_capacity[(key,ep)]:
-      self.max_capacity[(key,ep)] = max(max_cap, self.max_capacity[(key,ep)])
-    else:
-      self.current_capacity[(key,ep)] = 0
-      self.max_capacity[(key,ep)] = max_cap
+    self.current_capacity[(key,ep)] = 0
+    self.max_capacity[(key,ep)] = max_cap
 
   def bucket_capacity(self, key, ep):
     if (key, ep) in self.max_capacity:
