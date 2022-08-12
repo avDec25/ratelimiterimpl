@@ -7,18 +7,20 @@ app = FastAPI()
 rate_limiter = RateLimiter()
 
 @app.get("/filler/start")
-def read_root():
-  rate_limiter.start_filler()
+def start_rule(key: str, ep: str, max_cap: int, interval: int, token_count: int):
+  rate_limiter.start_bucket_filler(key, ep, max_cap, interval, token_count)
   return {"message": "Started"}
 
 @app.get("/filler/stop")
-def read_root():
-  rate_limiter.stop_filler()
+def end_rule(key: str, ep: str):
+  rate_limiter.stop_bucket_filler(key, ep)
   return {"message": "Stopped"}
 
+
 @app.get("/test/ratelimit")
-def read_root():
-  rate_limiter.remove_token()
+def hit_api(key: str, ep: str):
+  print(f"API key({key}), endPoint({ep})")
+  rate_limiter.remove_token(key, ep)
   return {"message": "Token Removed"}
 
 

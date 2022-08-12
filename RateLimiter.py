@@ -1,34 +1,43 @@
 import threading, sched, time
+from Buckets import Buckets
 from Constants import *
 
 class RateLimiter:
-  bucket = 0
-  s = sched.scheduler(time.time, time.sleep)
-  current_event = None
-
-  def bucket_filler(self):
-    if self.bucket == BUCKET.CAPACITY:
-      print(f"Bucket CAPACITY = {self.bucket} FULL")
-    else:
-      self.bucket += 1
-      print(f"bucket current capacity = {self.bucket}")
-    self.current_event = self.s.enter(BUCKET.FILL_INTERVAL, 1, self.bucket_filler)
-
-  def start_filler(self):
-    self.current_event = self.s.enter(BUCKET.FILL_INTERVAL, 1, self.bucket_filler)
-    t = threading.Thread(target=self.s.run)
-    t.start()
-    print("Enabled: Bucket Filler")
+  buckets = Buckets()
     
-  def stop_filler(self):
-    if self.current_event:
-      self.s.cancel(self.current_event)
-      self.current_event = None
-      print("Disabled: Bucket Filler")
+  schedule = {}
+  current_event = {}
+  fill_rate_interval = {}
+  fill_rate_token = {}
+  
+
+  def bucket_filler(self, key, ep):
+    self.buckets.add_tokens(key, ep, self.fill_rate_token[(key, ep)])
+    self.current_event[(key, ep)] = self.schedule[(key,ep)].enter(self.fill_rate_interval[(key, ep)], 1, self.bucket_filler, argument=(key, ep,))
+
+  def start_bucket_filler(self, key, ep, max_cap, interval, token_count):
+    self.buckets.add_bucket(key, ep, max_cap)
+    self.schedule[(key,ep)] = sched.scheduler(time.time, time.sleep)
+    self.current_event[(key,ep)] = None
+    self.fill_rate_interval[(key,ep)] = interval
+    self.fill_rate_token[(key,ep)] = token_count
+    
+    s = self.schedule[(key,ep)]
+    print(s)
+    print(self.fill_rate_interval[(key, ep)])
+    self.current_event[(key,ep)] = s.enter(self.fill_rate_interval[(key, ep)], 1, self.bucket_filler, argument=(key, ep,))
+    t = threading.Thread(target=s.run)
+    t.start()
+    print(f"Enabled: Bucket Filler for bucket({key},{ep})")
       
-  def remove_token(self):
-    if self.bucket > 0:
-      self.bucket -= 1
-      print("Request Approved.")
+  def stop_bucket_filler(self, key, ep):
+    if self.current_event[(key,ep)]:
+      self.schedule[(key,ep)].cancel(self.current_event[(key, ep)])
+      self.current_event[(key,ep)] = None
+      print(f"Disabled: Bucket Filler for bucket({key},{ep})")
+  
+  def remove_token(self, key, ep):
+    if self.buckets.remove_token(key, ep):
+      print("Request Accepted")
     else:
-      print("Request rate limited.")
+      print("Request Rejected")
